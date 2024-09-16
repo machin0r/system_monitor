@@ -1,0 +1,140 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"runtime"
+	"strings"
+	"time"
+
+	"github.com/go-ping/ping"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/shirou/gopsutil/v3/net"
+)
+
+func clearScreen() {
+	switch runtime.GOOS {
+	case "linux", "darwin":
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+	case "windows":
+		cmd := exec.Command("cmd", "/c", "cls")
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+	}
+}
+
+func getProgressBar(percent float64, width int) string {
+	filled := int(float64(width) * percent / 100)
+	bar := ""
+	for i := 0; i < width; i++ {
+		if i < filled {
+			bar += "█"
+		} else {
+			bar += "-"
+		}
+	}
+	return fmt.Sprintf("|%s| %.1f%%", bar, percent)
+}
+
+func centerText(text string, width int) string {
+	if len(text) >= width {
+		return text
+	}
+	leftPad := (width - len(text)) / 2
+	rightPad := width - len(text) - leftPad
+	return strings.Repeat(" ", leftPad) + text + strings.Repeat(" ", rightPad)
+}
+
+func pingGoogle() string {
+	pinger, err := ping.NewPinger("google.com")
+	if err != nil {
+		return "Error: " + err.Error()
+	}
+	pinger.Count = 1
+	pinger.Timeout = time.Second * 2
+	err = pinger.Run()
+	if err != nil {
+		return "Error: " + err.Error()
+	}
+	stats := pinger.Statistics()
+	return fmt.Sprintf("%.2f ms", float64(stats.AvgRtt)/float64(time.Millisecond))
+}
+
+func main() {
+	showPing := flag.Bool("p", false, "Show Google ping result")
+	flag.Parse()
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	// Initialize CPU measurement
+	cpu.Percent(0, false)
+
+	for {
+		select {
+		case <-ticker.C:
+			clearScreen()
+
+			fmt.Println(centerText("===== System Information =====", 80))
+			fmt.Println(strings.Repeat("=", 80))
+
+			// Get system information
+			hostInfo, _ := host.Info()
+			cpuPercent, _ := cpu.Percent(0, false)
+			memory, _ := mem.VirtualMemory()
+			disk, _ := disk.Usage("/")
+			netStats, _ := net.IOCounters(false)
+
+			// Left column
+			fmt.Printf("%-40s", fmt.Sprintf("Hostname: %s", hostInfo.Hostname))
+			// Right column
+			fmt.Printf("%-40s\n", fmt.Sprintf("OS: %s", hostInfo.OS))
+
+			fmt.Printf("%-40s", fmt.Sprintf("Kernel: %s", hostInfo.KernelVersion))
+			fmt.Printf("%-40s\n", fmt.Sprintf("Uptime: %s", time.Duration(hostInfo.Uptime)*time.Second))
+
+			fmt.Printf("%-40s", "CPU Usage:")
+			fmt.Printf("%-40s\n", "Memory Usage:")
+
+			if len(cpuPercent) > 0 {
+				fmt.Printf("%-40s", getProgressBar(cpuPercent[0], 15))
+			} else {
+				fmt.Printf("%-40s", "N/A")
+			}
+			fmt.Printf("%-40s\n", getProgressBar(memory.UsedPercent, 15))
+
+			fmt.Printf("%-40s", "Disk Usage:")
+			fmt.Printf("%-40s\n", fmt.Sprintf("Total Memory: %.2f GB", float64(memory.Total)/(1024*1024*1024)))
+
+			fmt.Printf("%-40s", getProgressBar(disk.UsedPercent, 15))
+			fmt.Printf("%-40s\n", fmt.Sprintf("Used Memory: %.2f GB", float64(memory.Used)/(1024*1024*1024)))
+
+			fmt.Println(strings.Repeat("=", 80))
+
+			// We're using the first (and only) element when fetching all network interfaces
+			stat := netStats[0]
+
+			fmt.Printf("Network Monitor\n")
+			fmt.Printf("----------------\n")
+			fmt.Printf("Bytes sent: %d\n", stat.BytesSent)
+			fmt.Printf("Bytes received: %d\n", stat.BytesRecv)
+			fmt.Printf("Packets sent: %d\n", stat.PacketsSent)
+			fmt.Printf("Packets received: %d\n", stat.PacketsRecv)
+
+			// Add Google ping result only if -p flag is provided
+			if *showPing {
+				pingResult := pingGoogle()
+				fmt.Printf("Google Ping: %s\n", pingResult)
+			}
+
+			fmt.Println(centerText("Press Ctrl+C to exit", 80))
+		}
+	}
+}
