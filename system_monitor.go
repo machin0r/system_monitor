@@ -98,6 +98,7 @@ func main() {
 		case <-ticker.C:
 			// Move cursor to update dynamic content
 			fmt.Print("\033[5;1H")
+			fmt.Printf("%-40s%-40s\n", "CPU Usage:", "Memory Usage:")
 
 			cpuPercent, _ := cpu.Percent(0, false)
 			memory, _ := mem.VirtualMemory()
@@ -111,6 +112,7 @@ func main() {
 				fmt.Printf("%-40s", "N/A")
 			}
 			fmt.Printf("%-40s\n", getProgressBar(memory.UsedPercent, 15))
+			fmt.Printf("%-40s%-40s\n", "Disk Usage:", "Total Memory: ")
 
 			fmt.Printf("%-40s", getProgressBar(disk.UsedPercent, 15))
 			fmt.Printf("%-40s\n", fmt.Sprintf("%.2f GB", float64(memory.Total)/(1024*1024*1024)))
