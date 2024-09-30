@@ -46,14 +46,14 @@ func centreText(text string, width int) string {
 func formatBytes(bytes float64) string {
 	const unit = 1024
 	if bytes < unit {
-		return fmt.Sprintf("%.2f B/s", bytes)
+		return fmt.Sprintf("%.2f B", bytes)
 	}
 	div, exp := int64(unit), 0
 	for n := bytes / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
-	return fmt.Sprintf("%.2f %cB/s", bytes/float64(div), "KMGTPE"[exp])
+	return fmt.Sprintf("%.2f %cB", bytes/float64(div), "KMGTPE"[exp])
 }
 
 func main() {
@@ -129,14 +129,14 @@ func main() {
 				uploadSpeed := float64(ioCounters[0].BytesSent-netStats.LastBytesSent) / duration
 				downloadSpeed := float64(ioCounters[0].BytesRecv-netStats.LastBytesRecv) / duration
 
-				fmt.Printf("%-40s", fmt.Sprintf("Upload Speed: %s", formatBytes(uploadSpeed)))
+				fmt.Printf("%-40s", fmt.Sprintf("Upload Speed: %s/s", formatBytes(uploadSpeed)))
 				if len(temperatures) > 0 {
 					fmt.Printf("%-40s\n", fmt.Sprintf("CPU: %.1f°C", temperatures[0].Temperature))
 				} else {
 					fmt.Printf("%-40s\n", "CPU: N/A")
 				}
 
-				fmt.Printf("%-40s", fmt.Sprintf("Download Speed: %s", formatBytes(downloadSpeed)))
+				fmt.Printf("%-40s", fmt.Sprintf("Download Speed: %s/s", formatBytes(downloadSpeed)))
 				if len(temperatures) > 1 {
 					fmt.Printf("%-40s\n", fmt.Sprintf("GPU: %.1f°C", temperatures[1].Temperature))
 				} else {
